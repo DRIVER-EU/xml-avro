@@ -20,290 +20,332 @@ import java.io.*;
 import java.util.*;
 
 public class DatumBuilder {
-    public static Element parse(InputSource source) {
-        try {
-            DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
-            builderFactory.setNamespaceAware(true);
+	public static Element parse(InputSource source) {
+		try {
+			DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
+			builderFactory.setNamespaceAware(true);
 
-            DocumentBuilder builder = builderFactory.newDocumentBuilder();
-            Document doc = builder.parse(source);
-            return doc.getDocumentElement();
-        } catch (ParserConfigurationException | SAXException | IOException e) {
-            throw new ConverterException(e);
-        }
-    }
+			DocumentBuilder builder = builderFactory.newDocumentBuilder();
+			Document doc = builder.parse(source);
+			return doc.getDocumentElement();
+		} catch (ParserConfigurationException | SAXException | IOException e) {
+			throw new ConverterException(e);
+		}
+	}
 
-    private static final List<Schema.Type> PRIMITIVES;
-    static {
-        PRIMITIVES = Collections.unmodifiableList(Arrays.asList(
-                Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG, Schema.Type.FLOAT,
-                Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.NULL
-        ));
-    }
+	private static final List<Schema.Type> PRIMITIVES;
+	static {
+		PRIMITIVES = Collections.unmodifiableList(Arrays.asList(Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
+				Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.NULL));
+	}
 
-    private static TimeZone defaultTimeZone = TimeZone.getTimeZone("UTC-0");
+	private static TimeZone defaultTimeZone = TimeZone.getTimeZone("UTC-0");
 
-    public static void setDefaultTimeZone(TimeZone timeZone) { defaultTimeZone = timeZone; }
-    public static TimeZone getDefaultTimeZone() { return defaultTimeZone; }
+	public static void setDefaultTimeZone(TimeZone timeZone) {
+		defaultTimeZone = timeZone;
+	}
 
-    private Schema schema;
-    private boolean caseSensitiveNames = true;
+	public static TimeZone getDefaultTimeZone() {
+		return defaultTimeZone;
+	}
 
-    public DatumBuilder(Schema schema) {
-        this.schema = schema;
-    }
+	private Schema schema;
+	private String rootElement;
+	private boolean caseSensitiveNames = true;
 
-    public boolean isCaseSensitiveNames() { return caseSensitiveNames; }
-    public void setCaseSensitiveNames(boolean caseSensitiveNames) { this.caseSensitiveNames = caseSensitiveNames; }
+	public DatumBuilder(Schema schema) {
+		this.schema = schema;
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(String xml) {
-        return createDatum(new StringReader(xml));
-    }
+	public DatumBuilder(Schema schema, String rootElement) {
+		this.schema = schema;
+		this.rootElement = rootElement;
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(File file) {
-        try (InputStream stream = new FileInputStream(file)) {
-            return createDatum(stream);
-        } catch (IOException e) {
-            throw new ConverterException(e);
-        }
-    }
+	public boolean isCaseSensitiveNames() {
+		return caseSensitiveNames;
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(Reader reader) {
-        return createDatum(new InputSource(reader));
-    }
+	public void setCaseSensitiveNames(boolean caseSensitiveNames) {
+		this.caseSensitiveNames = caseSensitiveNames;
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(InputStream stream) {
-        return createDatum(new InputSource(stream));
-    }
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(String xml) {
+		return createDatum(new StringReader(xml));
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(InputSource source) {
-        return createDatum(parse(source));
-    }
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(File file) {
+		try (InputStream stream = new FileInputStream(file)) {
+			return createDatum(stream);
+		} catch (IOException e) {
+			throw new ConverterException(e);
+		}
+	}
 
-    @SuppressWarnings("unchecked")
-    public <T> T createDatum(Element el) {
-        return (T) createNodeDatum(schema, el, false);
-    }
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(Reader reader) {
+		return createDatum(new InputSource(reader));
+	}
 
-    private Object createNodeDatum(Schema schema, Node source, boolean setRecordFromNode) {
-        if (!Arrays.asList(Node.ELEMENT_NODE, Node.ATTRIBUTE_NODE).contains(source.getNodeType()))
-            throw new IllegalArgumentException("Unsupported node type " + source.getNodeType());
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(InputStream stream) {
+		return createDatum(new InputSource(stream));
+	}
 
-        if (PRIMITIVES.contains(schema.getType()))
-            return createValue(schema.getType(), source.getTextContent());
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(InputSource source) {
+		return createDatum(parse(source));
+	}
 
-        if (schema.getType() == Schema.Type.UNION)
-            return createUnionDatum(schema, source);
+	@SuppressWarnings("unchecked")
+	public <T> T createDatum(Element el) {
+		return (T) createNodeDatum(schema, el, false);
+	}
 
-        if (schema.getType() == Schema.Type.RECORD)
-            return createRecord(schema, (Element) source, setRecordFromNode);
+	private Object createNodeDatum(Schema schema, Node source, boolean setRecordFromNode) {
+		if (!Arrays.asList(Node.ELEMENT_NODE, Node.ATTRIBUTE_NODE).contains(source.getNodeType()))
+			throw new IllegalArgumentException("Unsupported node type " + source.getNodeType());
 
-        if (schema.getType() == Schema.Type.ARRAY)
-            return createArray(schema, (Element) source);
+		if (PRIMITIVES.contains(schema.getType()))
+			return createValue(schema.getType(), source.getTextContent());
 
-        throw new ConverterException("Unsupported schema type " + schema.getType());
-    }
+		if (schema.getType() == Schema.Type.UNION)
+			return createUnionDatum(schema, source);
 
-    private Object createArray(Schema schema, Element el) {
-        NodeList childNodes = el.getChildNodes();
-        Schema elementType = schema.getElementType();
-        int numElements = childNodes.getLength();
-        GenericData.Array array = new GenericData.Array(numElements, schema);
+		if (schema.getType() == Schema.Type.RECORD)
+			return createRecord(schema, (Element) source, setRecordFromNode);
 
-        for (int i = 0; i < numElements; i++) {
-            Element child = (Element) childNodes.item(i);
-            //noinspection unchecked
-            array.add(createNodeDatum(elementType, child, true));
-        }
-        return array;
-    }
+		if (schema.getType() == Schema.Type.ARRAY)
+			return createArray(schema, (Element) source);
 
-  private Object createUnionDatum(Schema union, Node source) {
-        List<Schema> types = union.getTypes();
+		if (schema.getType() == Schema.Type.ENUM)
+			return createEnum(schema, (Element) source);
 
-        boolean optionalNode = types.size() == 2 && types.get(0).getType() == Schema.Type.NULL;
-        if (!optionalNode) throw new ConverterException("Unsupported union types " + types);
+		throw new ConverterException("Unsupported schema type " + schema.getType());
+	}
 
-        return createNodeDatum(types.get(1), source, false);
-    }
+	private Object createEnum(Schema schema, Element el) {
+		GenericData.EnumSymbol enumeration = new GenericData.EnumSymbol(schema, el.getTextContent());
+		return enumeration;
+	}
 
-    private Object createValue(Schema.Type type, String text) {
-        if (type == Schema.Type.BOOLEAN)
-            return "true".equals(text) || "1".equals(text);
+	private Object createArray(Schema schema, Element el) {
+		NodeList childNodes = el.getChildNodes();
+		Schema elementType = schema.getElementType();
+		int numElements = childNodes.getLength();
+		GenericData.Array array = new GenericData.Array(numElements, schema);
 
-        if (type == Schema.Type.INT)
-            return Integer.parseInt(text);
+		for (int i = 0; i < numElements; i++) {
+			Element child = (Element) childNodes.item(i);
+			// noinspection unchecked
+			array.add(createNodeDatum(elementType, child, true));
+		}
+		return array;
+	}
 
-        if (type == Schema.Type.LONG)
-            return text.contains("T") ? parseDateTime(text) : Long.parseLong(text);
+	private Object createUnionDatum(Schema union, Node source) {
+		List<Schema> types = union.getTypes();
+		for (Schema type : types) {
+			if (type.getType() != Schema.Type.NULL) {
+				try {
+					Object o = createNodeDatum(type, source, false);
+					return o;
+				} catch (ConverterException ce) {
+					// ignore
+				}
+			}
+		}
+		throw new ConverterException("Unsupported union types " + types);
+	}
 
-        if (type == Schema.Type.FLOAT)
-            return Float.parseFloat(text);
+	private Object createValue(Schema.Type type, String text) {
+		if (type == Schema.Type.BOOLEAN)
+			return "true".equals(text) || "1".equals(text);
 
-        if (type == Schema.Type.DOUBLE)
-            return Double.parseDouble(text);
+		if (type == Schema.Type.INT)
+			return Integer.parseInt(text);
 
-        if (type == Schema.Type.STRING)
-            return text;
+		if (type == Schema.Type.LONG)
+			return text.contains("T") ? parseDateTime(text) : Long.parseLong(text);
 
-        throw new ConverterException("Unsupported type " + type);
-    }
+		if (type == Schema.Type.FLOAT)
+			return Float.parseFloat(text);
 
-    private static long parseDateTime(String text) {
-        Calendar c = DatatypeConverter.parseDateTime(text);
-        c.setTimeZone(defaultTimeZone);
-        return c.getTimeInMillis();
-    }
+		if (type == Schema.Type.DOUBLE)
+			return Double.parseDouble(text);
 
-    private GenericData.Record createRecord(Schema schema, Element el, boolean setRecordFieldFromNode) {
-        GenericData.Record record = new GenericData.Record(schema);
+		if (type == Schema.Type.STRING)
+			return text;
 
-        // initialize arrays and wildcard maps
-        for (Schema.Field field : record.getSchema().getFields()) {
-            if (field.schema().getType() == Schema.Type.ARRAY)
-                record.put(field.name(), new ArrayList<>());
+		if (type == Schema.Type.NULL) {
+			return "null";
+		}
 
-            if (field.name().equals(Source.WILDCARD))
-                record.put(field.name(), new HashMap<String, Object>());
-        }
+		throw new ConverterException("Unsupported type " + type);
+	}
 
+	private static long parseDateTime(String text) {
+		Calendar c = DatatypeConverter.parseDateTime(text);
+		c.setTimeZone(defaultTimeZone);
+		return c.getTimeInMillis();
+	}
 
-        boolean rootRecord = Source.DOCUMENT.equals(schema.getProp(Source.SOURCE));
+	private GenericData.Record createRecord(Schema schema, Element el, boolean setRecordFieldFromNode) {
+		GenericData.Record record = new GenericData.Record(schema);
 
-        if (setRecordFieldFromNode) {
-          setFieldFromNode(schema, record, el);
-        } else {
-          NodeList nodes = rootRecord ? el.getOwnerDocument().getChildNodes() : el.getChildNodes();
-            for (int i = 0; i < nodes.getLength(); i++) {
-              setFieldFromNode(schema, record, nodes.item(i));
-            }
-        }
+		// initialize arrays and wildcard maps
+		for (Schema.Field field : record.getSchema().getFields()) {
+			if (field.schema().getType() == Schema.Type.ARRAY)
+				record.put(field.name(), new ArrayList<>());
 
-        if (!rootRecord) {
-            NamedNodeMap attrMap = el.getAttributes();
-            for (int i = 0; i < attrMap.getLength(); i++) {
-                Attr attr = (Attr) attrMap.item(i);
+			if (field.name().equals(Source.WILDCARD))
+				record.put(field.name(), new HashMap<String, Object>());
+		}
 
-                List<String> ignoredNamespaces = Arrays.asList("http://www.w3.org/2000/xmlns/", "http://www.w3.org/2001/XMLSchema-instance");
-                if (ignoredNamespaces.contains(attr.getNamespaceURI())) continue;
+		
+		boolean rootRecord = false; //schema.getName().equalsIgnoreCase(rootElement);
 
-                List<String> ignoredNames = Arrays.asList("xml:lang");
-                if (ignoredNames.contains(attr.getName())) continue;
+		if (setRecordFieldFromNode) {
+			setFieldFromNode(schema, record, el);
+		} else {
+			NodeList nodes = rootRecord ? el.getOwnerDocument().getChildNodes() : el.getChildNodes();
+			for (int i = 0; i < nodes.getLength(); i++) {
+				setFieldFromNode(schema, record, nodes.item(i));
+			}
+		}
 
-                if(!setRecordFieldFromNode) {
-                  Schema.Field field = getFieldBySource(schema, new Source(attr.getName(), true));
-                  if (field == null)
-                    throw new ConverterException("Unsupported attribute " + attr.getName());
+		if (!rootRecord) {
+			NamedNodeMap attrMap = el.getAttributes();
+			for (int i = 0; i < attrMap.getLength(); i++) {
+				Attr attr = (Attr) attrMap.item(i);
 
-                  Object datum = createNodeDatum(field.schema(), attr, false);
-                  record.put(field.name(), datum);
-                }
-            }
-        }
+				List<String> ignoredNamespaces = Arrays.asList("http://www.w3.org/2000/xmlns/",
+						"http://www.w3.org/2001/XMLSchema-instance");
+				if (ignoredNamespaces.contains(attr.getNamespaceURI()))
+					continue;
 
-        return record;
-    }
+				List<String> ignoredNames = Arrays.asList("xml:lang");
+				if (ignoredNames.contains(attr.getName()))
+					continue;
 
-    private void setFieldFromNode(Schema schema, GenericData.Record record, Node node) {
-        if (node.getNodeType() != Node.ELEMENT_NODE)
-            return;
+				if (!setRecordFieldFromNode) {
+					Schema.Field field = getFieldBySource(schema, new Source(attr.getName(), true));
+					if (field == null)
+						throw new ConverterException("Unsupported attribute " + attr.getName());
 
-        Element child = (Element) node;
-        boolean setRecordFromNode = false;
-        final String fieldName = child.getLocalName();
-        Schema.Field field = getFieldBySource(schema, new Source(fieldName, false));
-        if(field == null) {
-          field = getNestedFieldBySource(schema, new Source(fieldName, false));
-          setRecordFromNode = true;
-        }
+					Object datum = createNodeDatum(field.schema(), attr, false);
+					record.put(field.name(), datum);
+				}
+			}
+		}
 
-        if (field != null) {
-            boolean array = field.schema().getType() == Schema.Type.ARRAY;
-          Object datum = createNodeDatum(!array ? field.schema() : field.schema().getElementType(), child, setRecordFromNode);
+		return record;
+	}
 
-            if (!array)
-                record.put(field.name(), datum);
-            else {
-                @SuppressWarnings("unchecked") List<Object> values = (List<Object>) record.get(field.name());
-                values.add(datum);
-            }
-        } else {
-            Schema.Field anyField = schema.getField(Source.WILDCARD);
-            if (anyField == null)
-                throw new ConverterException("Could not find field " + fieldName + " in Avro Schema " + schema.getName() +  " , neither as specific field nor 'any' element");
+	private void setFieldFromNode(Schema schema, GenericData.Record record, Node node) {
+		if (node.getNodeType() != Node.ELEMENT_NODE)
+			return;
 
-            @SuppressWarnings("unchecked") Map<String, String> map = (HashMap<String, String>) record.get(Source.WILDCARD);
-            map.put(fieldName, getContentAsText(child));
-        }
-    }
+		Element child = (Element) node;
+		boolean setRecordFromNode = false;
+		final String fieldName = child.getLocalName();
+		Schema.Field field = getFieldBySource(schema, new Source(fieldName, false));
+		if (field == null) {
+			field = getNestedFieldBySource(schema, new Source(fieldName, false));
+			setRecordFromNode = true;
+		}
 
-    Schema.Field getFieldBySource(Schema schema, Source source) {
-        if(schema.getType() == Schema.Type.UNION) {
-          return getFieldBySource(schema.getTypes().get(1), source);
-        } else {
-          for (Schema.Field field : schema.getFields()) {
-            String fieldSource = field.getProp(Source.SOURCE);
-            if (caseSensitiveNames && source.toString().equals(fieldSource))
-              return field;
-            if (!caseSensitiveNames && source.toString().equalsIgnoreCase(fieldSource))
-              return field;
-          }
+		if (field != null) {
+			boolean array = field.schema().getType() == Schema.Type.ARRAY;
+			Object datum = createNodeDatum(!array ? field.schema() : field.schema().getElementType(), child,
+					setRecordFromNode);
 
-          return null;
-        }
-    }
+			if (!array)
+				record.put(field.name(), datum);
+			else {
+				@SuppressWarnings("unchecked")
+				List<Object> values = (List<Object>) record.get(field.name());
+				values.add(datum);
+			}
+		} else {
+			Schema.Field anyField = schema.getField(Source.WILDCARD);
+			if (anyField == null)
+				throw new ConverterException("Could not find field " + fieldName + " in Avro Schema " + schema.getName()
+						+ " , neither as specific field nor 'any' element");
 
-    Schema.Field getNestedFieldBySource(Schema schema, Source source) {
-      if(schema.getType() != Schema.Type.RECORD) {
-        return null;
-      }
+			@SuppressWarnings("unchecked")
+			Map<String, String> map = (HashMap<String, String>) record.get(Source.WILDCARD);
+			map.put(fieldName, getContentAsText(child));
+		}
+	}
 
-      for (Schema.Field field : schema.getFields()) {
-        Schema topSchema = field.schema();
+	Schema.Field getFieldBySource(Schema schema, Source source) {
+		if (schema.getType() == Schema.Type.UNION) {
+			return getFieldBySource(schema.getTypes().get(1), source);
+		} else {
+			for (Schema.Field field : schema.getFields()) {
+				String fieldSource = field.getProp(Source.SOURCE);
+				if (caseSensitiveNames && source.toString().equals(fieldSource))
+					return field;
+				if (!caseSensitiveNames && source.toString().equalsIgnoreCase(fieldSource))
+					return field;
+				if (source.getName().equals(field.name()))
+					return field;
+			}
 
-        switch (topSchema.getType()) {
-          case ARRAY: {
-            Schema.Field fieldBySource = getFieldBySource(topSchema.getElementType(), source);
-            if (fieldBySource != null) {
-              return field;
-            }
-          }
-          break;
-        }
-      }
+			return null;
+		}
+	}
 
-      return null;
-    }
+	Schema.Field getNestedFieldBySource(Schema schema, Source source) {
+		if (schema.getType() != Schema.Type.RECORD) {
+			return null;
+		}
 
-    private String getContentAsText(Element el) {
-        if (el.getTextContent().length() == 0) return "";
+		for (Schema.Field field : schema.getFields()) {
+			Schema topSchema = field.schema();
 
-        StringWriter writer = new StringWriter();
-        try {
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-            transformer.transform(new DOMSource(el), new StreamResult(writer));
-        } catch (TransformerException impossible) {
-            throw new ConverterException(impossible);
-        }
+			switch (topSchema.getType()) {
+			case ARRAY: {
+				Schema.Field fieldBySource = getFieldBySource(topSchema.getElementType(), source);
+				if (fieldBySource != null) {
+					return field;
+				}
+			}
+				break;
+			}
+		}
 
-        String result = "" + writer.getBuffer();
+		return null;
+	}
 
-        //trim element's start tag
-        int startTag = result.indexOf(el.getLocalName());
-        startTag = result.indexOf('>', startTag);
-        result = result.substring(startTag + 1);
+	private String getContentAsText(Element el) {
+		if (el.getTextContent().length() == 0)
+			return "";
 
-        //trim element's end tag
-        int endTag = result.lastIndexOf("</");
-        result = result.substring(0, endTag);
+		StringWriter writer = new StringWriter();
+		try {
+			Transformer transformer = TransformerFactory.newInstance().newTransformer();
+			transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+			transformer.transform(new DOMSource(el), new StreamResult(writer));
+		} catch (TransformerException impossible) {
+			throw new ConverterException(impossible);
+		}
 
-        return result;
-    }
+		String result = "" + writer.getBuffer();
+
+		// trim element's start tag
+		int startTag = result.indexOf(el.getLocalName());
+		startTag = result.indexOf('>', startTag);
+		result = result.substring(startTag + 1);
+
+		// trim element's end tag
+		int endTag = result.lastIndexOf("</");
+		result = result.substring(0, endTag);
+
+		return result;
+	}
 }
