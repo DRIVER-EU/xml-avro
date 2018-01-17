@@ -157,7 +157,8 @@ public class DatumBuilder {
 				}
 			}
 		}
-		throw new ConverterException("Unsupported union types " + types);
+		return null;
+		//throw new ConverterException("Unsupported union types " + types);
 	}
 
 	private Object createValue(Schema.Type type, String text) {
@@ -180,7 +181,7 @@ public class DatumBuilder {
 			return text;
 
 		if (type == Schema.Type.NULL) {
-			return "null";
+			return null;
 		}
 
 		throw new ConverterException("Unsupported type " + type);
