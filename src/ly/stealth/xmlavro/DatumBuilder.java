@@ -138,9 +138,11 @@ public class DatumBuilder {
 		GenericData.Array array = new GenericData.Array(numElements, schema);
 
 		for (int i = 0; i < numElements; i++) {
-			Element child = (Element) childNodes.item(i);
-			// noinspection unchecked
-			array.add(createNodeDatum(elementType, child, true));
+			if (childNodes.item(i).getNodeType() == Node.ELEMENT_NODE) {
+				Element child = (Element) childNodes.item(i);
+				// noinspection unchecked
+				array.add(createNodeDatum(elementType, child, true));
+			}
 		}
 		return array;
 	}
@@ -158,7 +160,7 @@ public class DatumBuilder {
 			}
 		}
 		return null;
-		//throw new ConverterException("Unsupported union types " + types);
+		// throw new ConverterException("Unsupported union types " + types);
 	}
 
 	private Object createValue(Schema.Type type, String text) {
@@ -205,8 +207,7 @@ public class DatumBuilder {
 				record.put(field.name(), new HashMap<String, Object>());
 		}
 
-		
-		boolean rootRecord = false; //schema.getName().equalsIgnoreCase(rootElement);
+		boolean rootRecord = false; // schema.getName().equalsIgnoreCase(rootElement);
 
 		if (setRecordFieldFromNode) {
 			setFieldFromNode(schema, record, el);
