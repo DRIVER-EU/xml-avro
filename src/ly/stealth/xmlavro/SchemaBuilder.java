@@ -129,6 +129,7 @@ public class SchemaBuilder {
             Schema nullSchema = Schema.create(Schema.Type.NULL);
             Schema optionalSchema = Schema.createUnion(Arrays.asList(nullSchema, schema));
 
+            
             Schema.Field field = new Schema.Field(source.getName(), optionalSchema, null, null);
             field.addProp(Source.SOURCE, "" + source);
             fields.add(field);
