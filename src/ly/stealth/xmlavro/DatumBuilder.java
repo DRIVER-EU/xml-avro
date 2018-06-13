@@ -22,7 +22,8 @@ import java.util.*;
 public class DatumBuilder {
 	public static Element parse(InputSource source) {
 		try {
-			DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilderFactory builderFactory = DocumentBuilderFactory
+					.newInstance();
 			builderFactory.setNamespaceAware(true);
 
 			DocumentBuilder builder = builderFactory.newDocumentBuilder();
@@ -35,8 +36,10 @@ public class DatumBuilder {
 
 	private static final List<Schema.Type> PRIMITIVES;
 	static {
-		PRIMITIVES = Collections.unmodifiableList(Arrays.asList(Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
-				Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.NULL));
+		PRIMITIVES = Collections.unmodifiableList(Arrays.asList(
+				Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
+				Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BOOLEAN,
+				Schema.Type.NULL));
 	}
 
 	private static TimeZone defaultTimeZone = TimeZone.getTimeZone("UTC-0");
@@ -104,10 +107,13 @@ public class DatumBuilder {
 		return (T) createNodeDatum(schema, el, false);
 	}
 
-	private Object createNodeDatum(Schema schema, Node source, boolean setRecordFromNode) {
-		if (!Arrays.asList(Node.ELEMENT_NODE, Node.ATTRIBUTE_NODE).contains(source.getNodeType()))
-			throw new IllegalArgumentException("Unsupported node type " + source.getNodeType());
-
+	private Object createNodeDatum(Schema schema, Node source,
+			boolean setRecordFromNode) {
+		if (!Arrays.asList(Node.ELEMENT_NODE, Node.ATTRIBUTE_NODE).contains(
+				source.getNodeType()))
+			throw new IllegalArgumentException("Unsupported node type "
+					+ source.getNodeType());
+		
 		if (PRIMITIVES.contains(schema.getType()))
 			return createValue(schema.getType(), source.getTextContent());
 
@@ -123,11 +129,13 @@ public class DatumBuilder {
 		if (schema.getType() == Schema.Type.ENUM)
 			return createEnum(schema, (Element) source);
 
-		throw new ConverterException("Unsupported schema type " + schema.getType());
+		throw new ConverterException("Unsupported schema type "
+				+ schema.getType());
 	}
 
 	private Object createEnum(Schema schema, Element el) {
-		GenericData.EnumSymbol enumeration = new GenericData.EnumSymbol(schema, el.getTextContent());
+		GenericData.EnumSymbol enumeration = new GenericData.EnumSymbol(schema,
+				el.getTextContent());
 		return enumeration;
 	}
 
@@ -171,7 +179,8 @@ public class DatumBuilder {
 			return Integer.parseInt(text);
 
 		if (type == Schema.Type.LONG)
-			return text.contains("T") ? parseDateTime(text) : Long.parseLong(text);
+			return text.contains("T") ? parseDateTime(text) : Long
+					.parseLong(text);
 
 		if (type == Schema.Type.FLOAT)
 			return Float.parseFloat(text);
@@ -195,7 +204,9 @@ public class DatumBuilder {
 		return c.getTimeInMillis();
 	}
 
-	private GenericData.Record createRecord(Schema schema, Element el, boolean setRecordFieldFromNode) {
+	private GenericData.Record createRecord(Schema schema, Element el,
+			boolean setRecordFieldFromNode) {
+		
 		GenericData.Record record = new GenericData.Record(schema);
 
 		// initialize arrays and wildcard maps
@@ -206,24 +217,31 @@ public class DatumBuilder {
 			if (field.name().equals(Source.WILDCARD))
 				record.put(field.name(), new HashMap<String, Object>());
 		}
-
+		
 		boolean rootRecord = false; // schema.getName().equalsIgnoreCase(rootElement);
 
-		if (setRecordFieldFromNode) {
-			setFieldFromNode(schema, record, el);
-		} else {
-			NodeList nodes = rootRecord ? el.getOwnerDocument().getChildNodes() : el.getChildNodes();
-			for (int i = 0; i < nodes.getLength(); i++) {
-				setFieldFromNode(schema, record, nodes.item(i));
+		try {
+			if (setRecordFieldFromNode) {
+				setFieldFromNode(schema, record, el);
+			} else {
+				NodeList nodes = rootRecord ? el.getOwnerDocument().getChildNodes()
+						: el.getChildNodes();
+				for (int i = 0; i < nodes.getLength(); i++) {
+					setFieldFromNode(schema, record, nodes.item(i));
+				}
 			}
+		} catch (Exception e) {
+			System.out.println(e);
 		}
-
+		
 		if (!rootRecord) {
 			NamedNodeMap attrMap = el.getAttributes();
 			for (int i = 0; i < attrMap.getLength(); i++) {
 				Attr attr = (Attr) attrMap.item(i);
-
-				List<String> ignoredNamespaces = Arrays.asList("http://www.w3.org/2000/xmlns/",
+				// by the way, this instruction could be out of the for loop,
+				// couldn't it?
+				List<String> ignoredNamespaces = Arrays.asList(
+						"http://www.w3.org/2000/xmlns/",
 						"http://www.w3.org/2001/XMLSchema-instance");
 				if (ignoredNamespaces.contains(attr.getNamespaceURI()))
 					continue;
@@ -231,29 +249,32 @@ public class DatumBuilder {
 				List<String> ignoredNames = Arrays.asList("xml:lang");
 				if (ignoredNames.contains(attr.getName()))
 					continue;
-
 				if (!setRecordFieldFromNode) {
-					Schema.Field field = getFieldBySource(schema, new Source(attr.getName(), true));
-					if (field == null)
+					Schema.Field field = getFieldBySource(schema, new Source(
+							attr.getName(), true));
+					if (field == null) {
+						System.out.println("Unsupported attribute " + attr.getName());
 						throw new ConverterException("Unsupported attribute " + attr.getName());
+					}
 
 					Object datum = createNodeDatum(field.schema(), attr, false);
 					record.put(field.name(), datum);
 				}
 			}
 		}
-
 		return record;
 	}
 
-	private void setFieldFromNode(Schema schema, GenericData.Record record, Node node) {
+	private void setFieldFromNode(Schema schema, GenericData.Record record,
+			Node node) {
 		if (node.getNodeType() != Node.ELEMENT_NODE)
 			return;
 
 		Element child = (Element) node;
 		boolean setRecordFromNode = false;
 		final String fieldName = child.getLocalName();
-		Schema.Field field = getFieldBySource(schema, new Source(fieldName, false));
+		Schema.Field field = getFieldBySource(schema, new Source(fieldName,
+				false));
 		if (field == null) {
 			field = getNestedFieldBySource(schema, new Source(fieldName, false));
 			setRecordFromNode = true;
@@ -261,8 +282,8 @@ public class DatumBuilder {
 
 		if (field != null) {
 			boolean array = field.schema().getType() == Schema.Type.ARRAY;
-			Object datum = createNodeDatum(!array ? field.schema() : field.schema().getElementType(), child,
-					setRecordFromNode);
+			Object datum = createNodeDatum(!array ? field.schema() : field
+					.schema().getElementType(), child, setRecordFromNode);
 
 			if (!array)
 				record.put(field.name(), datum);
@@ -274,11 +295,13 @@ public class DatumBuilder {
 		} else {
 			Schema.Field anyField = schema.getField(Source.WILDCARD);
 			if (anyField == null)
-				throw new ConverterException("Could not find field " + fieldName + " in Avro Schema " + schema.getName()
+				throw new ConverterException("Could not find field "
+						+ fieldName + " in Avro Schema " + schema.getName()
 						+ " , neither as specific field nor 'any' element");
 
 			@SuppressWarnings("unchecked")
-			Map<String, String> map = (HashMap<String, String>) record.get(Source.WILDCARD);
+			Map<String, String> map = (HashMap<String, String>) record
+					.get(Source.WILDCARD);
 			map.put(fieldName, getContentAsText(child));
 		}
 	}
@@ -291,7 +314,8 @@ public class DatumBuilder {
 				String fieldSource = field.getProp(Source.SOURCE);
 				if (caseSensitiveNames && source.toString().equals(fieldSource))
 					return field;
-				if (!caseSensitiveNames && source.toString().equalsIgnoreCase(fieldSource))
+				if (!caseSensitiveNames
+						&& source.toString().equalsIgnoreCase(fieldSource))
 					return field;
 				if (source.getName().equals(field.name()))
 					return field;
@@ -311,7 +335,8 @@ public class DatumBuilder {
 
 			switch (topSchema.getType()) {
 			case ARRAY: {
-				Schema.Field fieldBySource = getFieldBySource(topSchema.getElementType(), source);
+				Schema.Field fieldBySource = getFieldBySource(
+						topSchema.getElementType(), source);
 				if (fieldBySource != null) {
 					return field;
 				}
@@ -329,9 +354,11 @@ public class DatumBuilder {
 
 		StringWriter writer = new StringWriter();
 		try {
-			Transformer transformer = TransformerFactory.newInstance().newTransformer();
+			Transformer transformer = TransformerFactory.newInstance()
+					.newTransformer();
 			transformer.setOutputProperty(OutputKeys.METHOD, "xml");
-			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,
+					"yes");
 			transformer.transform(new DOMSource(el), new StreamResult(writer));
 		} catch (TransformerException impossible) {
 			throw new ConverterException(impossible);
