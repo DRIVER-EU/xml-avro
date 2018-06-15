@@ -78,12 +78,12 @@
 				<version>0.12</version>
 				<configuration>
 					<message>Maven artifacts for xml-avro fork ${project.version}</message>
-					<noJekyll>true</noJekyll>
 					<outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
 					<branch>refs/heads/master</branch>
 					<includes>
 						<include>**/*</include>
 					</includes>
+					<merge>true</merge>
 					<repositoryName>maven-repo</repositoryName>
 					<repositoryOwner>DRIVER-EU</repositoryOwner>
 				</configuration>
