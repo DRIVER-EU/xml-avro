@@ -1,10 +1,12 @@
 language: java
 jdk:
 - oraclejdk8
-
-script:
-  - cp .travis.settings.xml $HOME/.m2/settings.xml
-  - mvn deploy
+  
+deploy:
+  provider: script
+  script: cp .travis.settings.xml $HOME/.m2/settings.xml && mvn deploy
+  on:
+    branch: master
 
 cache:
   directories:
