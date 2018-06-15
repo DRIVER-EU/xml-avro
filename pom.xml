@@ -77,7 +77,7 @@
 				<artifactId>site-maven-plugin</artifactId>
 				<version>0.12</version>
 				<configuration>
-					<message>Maven artifacts for xml-avro fork ${project.version}</message>
+					<message>Maven artifacts for ${project.name} ${project.version}</message>
 					<outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
 					<branch>refs/heads/master</branch>
 					<includes>
