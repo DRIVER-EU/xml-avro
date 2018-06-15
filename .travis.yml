@@ -6,7 +6,12 @@ script:
   - cp .travis.settings.xml $HOME/.m2/settings.xml
   - mvn clean install
   - mvn deploy
-  
+
+cache:
+  directories:
+  - .autoconf
+  - $HOME/.m2
+
 env:
   global:
   - secure: XLcfE2hcKDW23hILLgARFjrVEqHGIOeXeqtLZ36zQsLdCFAjRiGDo1K6VroGX94YmBOvHe7EUgQStYw66iPkdHNGTMQGP/tLXJ7stsotNsg+FJvpSfC38TwbSoS5C+NJyJrsEDKPw90YzxmzZfYlIKfK24hDLjvg3+m2AH4PTHJ6kuB8JxujFmkMgzBFQuVsfNqa5BYblqf33tE4vDMN4NhJmRhxuOvvKxGbyZb3R7QFOVQK0dcNPYnjbV4P2WaBAaXRpBC07Jluc/y5CSvKGxnt89kUoJFU4iCuO/BRf9YUi8VpQDMRAaGkBqvBBgFo5XZjDnh6nHmPCA+CULoWJikMmN1CIQ/RirGY3iUUFEkpismDFXNT6tdM8mPr6yTlHMoSgSc49MIMcw8lpgXWA4C6yQl2OA4cDDHwg9TVv8/iVwZ62PizyMzwEYiKCVpbd3hlx8OBt7hTtor2pKNLXByL2m3LzKDAvZvoYMOpzqmdlkCzp0IlcnJ1yrqbxKqN3eFyb/HqdQ/O5nOhWMhvJj6VipQHtXMdNOQkwPy4NRmRZAZ3/XoFBmTTXXvfbEft9D1FJTuCg/anL6/u3LkTzRBViHB5FaVjvREIMFXJL10uBnvDyjBLvvweQBY3qvb6OlqDvcik7QmyQtPvoA+MgNOgaoMASK8XSxmB2lmlWmg=
