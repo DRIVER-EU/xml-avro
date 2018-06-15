@@ -1,0 +1,13 @@
+language: java
+jdk: 
+  - oraclejdk8
+
+install: true
+
+env:
+  - CI=true
+  
+cache:
+  directories:
+  - .autoconf
+  - $HOME/.m2
