@@ -16,6 +16,7 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+
 import java.io.*;
 import java.util.*;
 
@@ -285,9 +286,23 @@ public class DatumBuilder {
 			Object datum = createNodeDatum(!array ? field.schema() : field
 					.schema().getElementType(), child, setRecordFromNode);
 
-			if (!array)
-				record.put(field.name(), datum);
-			else {
+			if (!array) {
+				// check maby a array if record allready exists
+				if (record.get(field.name()) != null) {
+					if (!(record.get(field.name()) instanceof List)) {
+						List<Object> values = new ArrayList<Object>();
+						values.add(record.get(field.name()));
+						values.add(datum);
+						record.put(field.name(), values);
+					} else {
+						@SuppressWarnings("unchecked")
+						List<Object> values = (List<Object>) record.get(field.name());
+						values.add(datum);
+					}
+				} else {
+					record.put(field.name(), datum);	
+				}
+			} else {
 				@SuppressWarnings("unchecked")
 				List<Object> values = (List<Object>) record.get(field.name());
 				values.add(datum);
